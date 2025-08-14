@@ -1,11 +1,36 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Comprehensive debugging
+console.log('=== ENVIRONMENT VARIABLES DEBUG ===')
+console.log('import.meta.env:', import.meta.env)
+console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
+console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? '***exists***' : 'missing')
+console.log('All VITE_ variables:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')))
+console.log('=== END DEBUG ===')
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+if (!supabaseUrl) {
+  console.error('❌ Missing VITE_SUPABASE_URL environment variable')
+  console.error('Please check your .env file contains: VITE_SUPABASE_URL=https://your-project-ref.supabase.co')
+  throw new Error('Missing VITE_SUPABASE_URL environment variable')
 }
+
+if (!supabaseAnonKey) {
+  console.error('❌ Missing VITE_SUPABASE_ANON_KEY environment variable')
+  console.error('Please check your .env file contains: VITE_SUPABASE_ANON_KEY=your-actual-key')
+  throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable')
+}
+
+if (supabaseUrl === 'your_supabase_project_url' || supabaseAnonKey === 'your_supabase_anon_key') {
+  console.error('❌ Environment variables contain placeholder values. Please update your .env file with real values.')
+  throw new Error('Environment variables contain placeholder values. Please update your .env file with real values.')
+}
+
+console.log('✅ Environment variables loaded successfully')
+console.log('Supabase URL:', supabaseUrl)
+console.log('Supabase Key:', supabaseAnonKey ? '***exists***' : 'missing')
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

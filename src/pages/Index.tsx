@@ -3,12 +3,16 @@ import { MixMateHeader } from "@/components/MixMateHeader";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { CreatePlaylistModal } from "@/components/CreatePlaylistModal";
 import { PlaylistView } from "@/components/PlaylistView";
+import { PlatformConnectModal } from "@/components/PlatformConnectModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 import heroImage from "@/assets/hero-music.jpg";
-import { Music, Users, Zap, ArrowRight } from "lucide-react";
+import { Music, Users, Zap, ArrowRight, Plus } from "lucide-react";
 
-// Mock data
+// Mock data for demo purposes
 const mockPlaylists = [
   {
     id: "1",
@@ -73,27 +77,61 @@ const Index = () => {
   const [currentView, setCurrentView] = useState("home");
   const [playlists, setPlaylists] = useState(mockPlaylists);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, profile, loading } = useAuth();
 
-  const handleCreatePlaylist = (name: string) => {
-    const newPlaylist = {
-      id: Date.now().toString(),
-      name,
-      songCount: 0,
-      collaborators: [{ name: "You", platform: "Spotify" }],
-      lastUpdated: "just now",
-      songs: []
-    };
-    setPlaylists([newPlaylist, ...playlists]);
+  const handleCreatePlaylist = async (name: string) => {
+    if (!user) {
+      toast.error("Please sign in to create playlists");
+      return;
+    }
+
+    try {
+      // Create playlist in Supabase
+      const { data: playlist, error } = await supabase
+        .from('playlists')
+        .insert({
+          name,
+          owner_id: user.id,
+          is_public: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add user as collaborator
+      await supabase
+        .from('playlist_collaborators')
+        .insert({
+          playlist_id: playlist.id,
+          user_id: user.id,
+          permission_level: 'owner',
+        });
+
+      const newPlaylist = {
+        id: playlist.id,
+        name: playlist.name,
+        songCount: 0,
+        collaborators: [{ name: profile?.display_name || "You", platform: "Connected Platform" }],
+        lastUpdated: "just now",
+        songs: []
+      };
+
+      setPlaylists([newPlaylist, ...playlists]);
+      toast.success(`Playlist "${name}" created successfully!`);
+    } catch (error) {
+      console.error('Error creating playlist:', error);
+      toast.error("Failed to create playlist");
+    }
   };
 
-  const handleAddSong = (song: { title: string; artist: string; platform: string }) => {
+  const handleAddSong = (song: { title: string; artist: string; platform: string; platform_id?: string }) => {
     if (selectedPlaylist) {
       const newSong = {
         id: Date.now().toString(),
         ...song,
         album: "Unknown Album",
-        addedBy: "You",
+        addedBy: profile?.display_name || "You",
         likes: 0,
         isLiked: false
       };
@@ -131,7 +169,20 @@ const Index = () => {
     }
   };
 
-  if (!isLoggedIn) {
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading MixMate...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show landing page if not logged in
+  if (!user) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
@@ -198,15 +249,16 @@ const Index = () => {
 
             {/* CTA */}
             <div className="text-center">
-              <Button 
-                variant="gradient" 
-                size="lg"
-                onClick={() => setIsLoggedIn(true)}
-                className="text-lg px-8 py-6"
-              >
-                Get Started with MixMate
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              <PlatformConnectModal>
+                <Button 
+                  variant="gradient" 
+                  size="lg"
+                  className="text-lg px-8 py-6"
+                >
+                  Get Started with MixMate
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </PlatformConnectModal>
               <p className="text-muted-foreground text-sm mt-4">
                 Connect your music platform and start collaborating
               </p>
@@ -217,6 +269,7 @@ const Index = () => {
     );
   }
 
+  // Show playlist view if one is selected
   if (selectedPlaylist) {
     return (
       <div className="min-h-screen bg-background">
@@ -234,6 +287,7 @@ const Index = () => {
     );
   }
 
+  // Show main dashboard
   return (
     <div className="min-h-screen bg-background">
       <MixMateHeader currentView={currentView} onViewChange={setCurrentView} />
@@ -244,6 +298,14 @@ const Index = () => {
             <div>
               <h2 className="text-2xl font-bold text-foreground">Your Playlists</h2>
               <p className="text-muted-foreground">Collaborate on music with friends</p>
+            </div>
+            <div className="flex gap-2">
+              <PlatformConnectModal>
+                <Button variant="outline" size="sm">
+                  <Music className="w-4 h-4 mr-2" />
+                  Connect Platform
+                </Button>
+              </PlatformConnectModal>
             </div>
           </div>
 
@@ -260,6 +322,24 @@ const Index = () => {
               />
             ))}
           </div>
+
+          {playlists.length === 0 && (
+            <Card className="bg-gradient-card border border-border/50">
+              <div className="p-8 text-center">
+                <Music className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No playlists yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Create your first collaborative playlist to get started!
+                </p>
+                <CreatePlaylistModal onCreatePlaylist={handleCreatePlaylist}>
+                  <Button className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Playlist
+                  </Button>
+                </CreatePlaylistModal>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

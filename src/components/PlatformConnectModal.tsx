@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Music, ExternalLink, CheckCircle, Loader2 } from "lucide-react";
+import { Loader2, Music, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 
 interface PlatformConnectModalProps {
   children: React.ReactNode;
@@ -13,84 +14,72 @@ interface PlatformConnectModalProps {
 
 export const PlatformConnectModal = ({ children }: PlatformConnectModalProps) => {
   const [open, setOpen] = useState(false);
-  const [connecting, setConnecting] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const { profile, updateProfile } = useAuth();
 
-  const connectSpotify = async () => {
-    setConnecting('spotify');
+  const spotifyClientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+  const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || 'http://localhost:5173/auth/callback';
+
+  const handleSpotifyConnect = async () => {
+    if (!spotifyClientId) {
+      toast.error("Spotify client ID not configured");
+      return;
+    }
+
+    setIsConnecting(true);
     
     try {
       // Generate Spotify OAuth URL
-      const clientId = 'your_spotify_client_id'; // This would come from Supabase secrets
-      const redirectUri = `${window.location.origin}/auth/spotify/callback`;
-      const scopes = [
-        'playlist-read-private',
-        'playlist-read-collaborative',
-        'playlist-modify-public',
-        'playlist-modify-private',
-        'user-read-private',
-        'user-read-email'
-      ].join(' ');
-
-      const authUrl = new URL('https://accounts.spotify.com/authorize');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('scope', scopes);
-      authUrl.searchParams.set('state', 'spotify_connect');
-
-      // For demo purposes, we'll simulate the connection
-      // In production, you'd redirect to the OAuth URL
-      setTimeout(() => {
-        updateProfile({ spotify_id: 'demo_spotify_user' });
-        toast.success("Spotify connected successfully!");
-        setConnecting(null);
-      }, 2000);
+      const scope = 'playlist-read-private playlist-modify-private playlist-modify-public user-read-private';
+      const authUrl = `https://accounts.spotify.com/authorize?client_id=${spotifyClientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${Math.random().toString(36).substring(7)}`;
+      
+      // Store the redirect URI in localStorage for the callback
+      localStorage.setItem('spotify_redirect_uri', redirectUri);
+      
+      // Open Spotify OAuth in a new window
+      const authWindow = window.open(authUrl, 'spotify-auth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      
+      // Listen for the callback
+      const checkClosed = setInterval(() => {
+        if (authWindow?.closed) {
+          clearInterval(checkClosed);
+          setIsConnecting(false);
+          
+          // Check if we have a token (this would be set by the callback handler)
+          if (profile?.spotify_token) {
+            toast.success("Spotify connected successfully!");
+            setOpen(false);
+          }
+        }
+      }, 1000);
 
     } catch (error) {
+      console.error('Spotify connection error:', error);
       toast.error("Failed to connect Spotify");
-      setConnecting(null);
+      setIsConnecting(false);
     }
   };
 
-  const connectAppleMusic = async () => {
-    setConnecting('apple_music');
-    
+  const handleSpotifyDisconnect = async () => {
     try {
-      // Apple Music connection would use MusicKit JS
-      // For demo purposes, we'll simulate the connection
-      setTimeout(() => {
-        updateProfile({ apple_music_id: 'demo_apple_user' });
-        toast.success("Apple Music connected successfully!");
-        setConnecting(null);
-      }, 2000);
-
+      await updateProfile({
+        spotify_id: null,
+        spotify_token: null,
+        spotify_refresh_token: null,
+        token_expires_at: null,
+      });
+      toast.success("Spotify disconnected");
     } catch (error) {
-      toast.error("Failed to connect Apple Music");
-      setConnecting(null);
+      toast.error("Failed to disconnect Spotify");
     }
   };
 
-  const disconnectPlatform = async (platform: 'spotify' | 'apple_music') => {
-    try {
-      if (platform === 'spotify') {
-        await updateProfile({ 
-          spotify_id: null, 
-          spotify_token: null, 
-          spotify_refresh_token: null 
-        });
-        toast.success("Spotify disconnected");
-      } else {
-        await updateProfile({ 
-          apple_music_id: null, 
-          apple_music_token: null 
-        });
-        toast.success("Apple Music disconnected");
-      }
-    } catch (error) {
-      toast.error(`Failed to disconnect ${platform}`);
-    }
+  const handleAppleMusicConnect = async () => {
+    toast.info("Apple Music integration coming soon!");
   };
+
+  const isSpotifyConnected = !!profile?.spotify_token;
+  const isAppleMusicConnected = !!profile?.apple_music_token;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -99,117 +88,109 @@ export const PlatformConnectModal = ({ children }: PlatformConnectModalProps) =>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Music className="w-5 h-5" />
-            Connect Music Platforms
-          </DialogTitle>
+          <DialogTitle>Connect Music Platforms</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Connect your music streaming accounts to create and sync collaborative playlists.
-          </p>
-
-          {/* Spotify */}
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                <Music className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-medium">Spotify</h3>
-                <p className="text-sm text-muted-foreground">
-                  {profile?.spotify_id ? 'Connected' : 'Not connected'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {profile?.spotify_id ? (
-                <>
-                  <Badge variant="secondary" className="text-green-600">
-                    <CheckCircle className="w-3 h-3 mr-1" />
+          {/* Spotify Connection */}
+          <Card className={isSpotifyConnected ? "border-green-200 bg-green-50" : ""}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                    <Music className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Spotify</CardTitle>
+                    <CardDescription>
+                      Connect your Spotify account to sync playlists
+                    </CardDescription>
+                  </div>
+                </div>
+                {isSpotifyConnected && (
+                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    <CheckCircle className="w-4 h-4 mr-1" />
                     Connected
                   </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => disconnectPlatform('spotify')}
-                  >
-                    Disconnect
-                  </Button>
-                </>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isSpotifyConnected ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Connected as: {profile?.spotify_id || 'Unknown'}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSpotifyDisconnect}
+                      className="flex-1"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Disconnect
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open('https://open.spotify.com', '_blank')}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <Button
+                  onClick={handleSpotifyConnect}
+                  disabled={isConnecting}
+                  className="w-full"
                   variant="outline"
-                  size="sm"
-                  onClick={connectSpotify}
-                  disabled={connecting === 'spotify'}
                 >
-                  {connecting === 'spotify' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Connect
-                    </>
-                  )}
+                  {isConnecting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Connect Spotify
                 </Button>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Apple Music */}
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center">
-                <Music className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-medium">Apple Music</h3>
-                <p className="text-sm text-muted-foreground">
-                  {profile?.apple_music_id ? 'Connected' : 'Not connected'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {profile?.apple_music_id ? (
-                <>
-                  <Badge variant="secondary" className="text-green-600">
-                    <CheckCircle className="w-3 h-3 mr-1" />
+          {/* Apple Music Connection */}
+          <Card className={isAppleMusicConnected ? "border-blue-200 bg-blue-50" : ""}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <Music className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Apple Music</CardTitle>
+                    <CardDescription>
+                      Connect your Apple Music account (Coming Soon)
+                    </CardDescription>
+                  </div>
+                </div>
+                {isAppleMusicConnected && (
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    <CheckCircle className="w-4 h-4 mr-1" />
                     Connected
                   </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => disconnectPlatform('apple_music')}
-                  >
-                    Disconnect
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={connectAppleMusic}
-                  disabled={connecting === 'apple_music'}
-                >
-                  {connecting === 'apple_music' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Connect
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={handleAppleMusicConnect}
+                disabled={true}
+                className="w-full"
+                variant="outline"
+              >
+                Coming Soon
+              </Button>
+            </CardContent>
+          </Card>
 
-          <div className="text-xs text-muted-foreground">
-            <p>We use secure OAuth authentication to connect your accounts. Your credentials are never stored.</p>
+          <div className="text-center text-sm text-muted-foreground pt-4">
+            <p>Connect at least one platform to start creating collaborative playlists</p>
           </div>
         </div>
       </DialogContent>

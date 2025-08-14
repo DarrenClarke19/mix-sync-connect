@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SongItem } from "./SongItem";
-import { AddSongModal } from "./AddSongModal";
-import { ArrowLeft, Users, Download, Share2, Music } from "lucide-react";
+import { SongSearch } from "./SongSearch";
+import { ArrowLeft, Users, Download, Share2, Music, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface PlaylistViewProps {
   playlist: {
@@ -36,14 +39,47 @@ export const PlaylistView = ({
   onRemoveSong 
 }: PlaylistViewProps) => {
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [showSongSearch, setShowSongSearch] = useState(false);
+  const { profile } = useAuth();
 
-  const handleExport = (platform: string) => {
+  const handleExport = async (platform: string) => {
+    if (!profile) {
+      toast.error("Please sign in to export playlists");
+      return;
+    }
+
     setExportStatus(`Exporting to ${platform}...`);
-    setTimeout(() => {
-      setExportStatus(`Exported to ${platform} successfully!`);
-      setTimeout(() => setExportStatus(null), 3000);
-    }, 2000);
+    
+    try {
+      // Call the playlist sync function
+      const { data, error } = await supabase.functions.invoke('playlist-sync', {
+        body: {
+          action: 'export_playlist',
+          playlist_id: playlist.id,
+          platform: platform.toLowerCase().replace(' ', '_'),
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.success) {
+        setExportStatus(`Exported to ${platform} successfully!`);
+        toast.success(`Playlist exported to ${platform}!`);
+      } else {
+        throw new Error('Export failed');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setExportStatus(`Failed to export to ${platform}`);
+      toast.error(`Failed to export to ${platform}`);
+    }
+
+    setTimeout(() => setExportStatus(null), 5000);
   };
+
+  const hasConnectedPlatform = profile?.spotify_token || profile?.apple_music_token;
 
   return (
     <div className="space-y-6">
@@ -73,7 +109,13 @@ export const PlaylistView = ({
                 ))}
               </div>
             </div>
-            <AddSongModal onAddSong={onAddSong} />
+            <Button 
+              onClick={() => setShowSongSearch(!showSongSearch)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {showSongSearch ? 'Hide Search' : 'Add Songs'}
+            </Button>
           </div>
 
           <div className="flex gap-2 flex-wrap">
@@ -81,7 +123,7 @@ export const PlaylistView = ({
               variant="outline" 
               size="sm"
               onClick={() => handleExport("Spotify")}
-              disabled={!!exportStatus}
+              disabled={!!exportStatus || !profile?.spotify_token}
             >
               <Download className="w-4 h-4" />
               Export to Spotify
@@ -90,7 +132,7 @@ export const PlaylistView = ({
               variant="outline" 
               size="sm"
               onClick={() => handleExport("Apple Music")}
-              disabled={!!exportStatus}
+              disabled={!!exportStatus || !profile?.apple_music_token}
             >
               <Download className="w-4 h-4" />
               Export to Apple Music
@@ -106,9 +148,26 @@ export const PlaylistView = ({
               {exportStatus}
             </div>
           )}
+
+          {!hasConnectedPlatform && (
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                Connect a music platform to export playlists and search for songs
+              </p>
+            </div>
+          )}
         </div>
       </Card>
 
+      {/* Song Search Section */}
+      {showSongSearch && (
+        <SongSearch 
+          onAddSong={onAddSong}
+          currentPlatform={profile?.spotify_token ? "spotify" : "apple_music"}
+        />
+      )}
+
+      {/* Songs List */}
       <div className="space-y-3">
         {playlist.songs.length > 0 ? (
           playlist.songs.map((song) => (
@@ -133,7 +192,13 @@ export const PlaylistView = ({
               <p className="text-muted-foreground mb-4">
                 Start building your collaborative playlist by adding the first song!
               </p>
-              <AddSongModal onAddSong={onAddSong} />
+              <Button 
+                onClick={() => setShowSongSearch(true)}
+                className="flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Songs
+              </Button>
             </div>
           </Card>
         )}
