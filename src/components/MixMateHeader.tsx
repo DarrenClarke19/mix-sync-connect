@@ -1,109 +1,101 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PlatformConnectModal } from "./PlatformConnectModal";
-import { useAuth } from "@/hooks/useAuth";
-import { Music, Users, Settings, LogOut, User, Plus } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { useUserStore } from "@/stores/useUserStore";
+import { Users, Settings, LogOut, User } from "lucide-react";
+import { Link } from "react-router-dom";
 
-interface MixMateHeaderProps {
-  currentView: string;
-  onViewChange: (view: string) => void;
-}
-
-export const MixMateHeader = ({ currentView, onViewChange }: MixMateHeaderProps) => {
-  const { user, profile, signOut } = useAuth();
+export const MixMateHeader = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { user, signOut } = useFirebaseAuth();
+  const { profile } = useUserStore();
 
   const handleSignOut = async () => {
     try {
       await signOut();
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error("Error signing out:", error);
     }
   };
 
   return (
-    <header className="bg-gradient-card border-b border-border/50 backdrop-blur-sm">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-primary rounded-xl shadow-glow">
-              <Music className="w-6 h-6 text-primary-foreground" />
+    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <span className="text-lg font-bold text-primary-foreground">M</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                MixMate
-              </h1>
-              <p className="text-muted-foreground text-sm">Collaborative Playlists</p>
-            </div>
-          </div>
+            <span className="text-xl font-bold">MixMate</span>
+          </Link>
           
-          <div className="flex items-center gap-2">
-            <Button
-              variant={currentView === "playlists" ? "gradient" : "ghost"}
-              size="sm"
-              onClick={() => onViewChange("playlists")}
-            >
-              <Music className="w-4 h-4" />
-              Playlists
-            </Button>
-            <Button
-              variant={currentView === "friends" ? "gradient" : "ghost"}
-              size="sm"
-              onClick={() => onViewChange("friends")}
-            >
-              <Users className="w-4 h-4" />
-              Friends
-            </Button>
+          {user && (
+            <nav className="flex items-center gap-4">
+              <Link to="/friends">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Friends
+                </Button>
+              </Link>
+            </nav>
+          )}
+        </div>
 
-            {user && (
-              <>
-                <PlatformConnectModal>
-                  <Button variant="outline" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Connect Platform
-                  </Button>
-                </PlatformConnectModal>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                          {profile?.display_name?.charAt(0) || user.email?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {profile?.display_name || 'User'}
-                        </p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <User className="w-4 h-4 mr-2" />
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-          </div>
+        <div className="flex items-center gap-4">
+          {user ? (
+            <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-gradient-primary text-primary-foreground text-sm">
+                      {profile?.displayName?.charAt(0) || user.email?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {profile?.displayName || 'User'}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/friends" className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Friends
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Welcome to MixMate</span>
+            </div>
+          )}
         </div>
       </div>
     </header>

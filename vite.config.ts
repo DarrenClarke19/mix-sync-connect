@@ -1,33 +1,24 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8081,
-    allowedHosts: [
-      "localhost",
-      "127.0.0.1",
-      ".ngrok-free.app",
-      ".ngrok.io",
-      ".ngrok.app",
-      "https://mix-sync-connect.vercel.app/"
-    ],
-    hmr: {
-      clientPort: 443,
-    },
-  },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
+export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+  server: {
+    port: 3000,
+    host: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '.ngrok-free.app', // Allow all ngrok-free.app subdomains
+      '.ngrok.io', // Allow all ngrok.io subdomains
+      '.ngrok.app', // Allow all ngrok.app subdomains
+    ],
+  },
+});

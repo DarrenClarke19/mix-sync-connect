@@ -1,30 +1,55 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Music, Heart, MoreVertical, ExternalLink } from "lucide-react";
+import { Music, Heart, MoreVertical, ExternalLink, Trash2 } from "lucide-react";
+import { useUserStore } from "@/stores/useUserStore";
 
 interface SongItemProps {
-  title: string;
-  artist: string;
-  album?: string;
-  addedBy: string;
-  platform: string;
-  likes: number;
-  isLiked: boolean;
+  song: {
+    id?: string;
+    title: string;
+    artist: string;
+    album?: string;
+    platform: string;
+    platformId?: string;
+    addedBy: string;
+    addedAt: Date;
+    likes: number;
+  };
   onLike: () => void;
   onRemove: () => void;
+  canRemove: boolean;
 }
 
 export const SongItem = ({
-  title,
-  artist,
-  album,
-  addedBy,
-  platform,
-  likes,
-  isLiked,
+  song,
   onLike,
+  onRemove,
+  canRemove,
 }: SongItemProps) => {
+  const { title, artist, album, addedBy, platform, likes } = song;
+  const { profile } = useUserStore();
+  
+  // Get the display name for the user who added the song
+  const getAddedByDisplay = () => {
+    // Check if the current user added this song
+    if (addedBy === profile?.uid || addedBy === 'unknown') {
+      return profile?.displayName || profile?.email?.split('@')[0] || 'You';
+    }
+    
+    // For other users, try to show a meaningful name
+    if (addedBy.includes('@')) {
+      return addedBy.split('@')[0]; // Show username part of email
+    }
+    
+    // If it's a UID, show first few characters
+    if (addedBy.length > 20) {
+      return addedBy.substring(0, 8) + '...';
+    }
+    
+    return addedBy;
+  };
+
   return (
     <Card className="bg-gradient-card border border-border/50 hover:border-primary/30 transition-all duration-300">
       <div className="p-4">
@@ -42,10 +67,10 @@ export const SongItem = ({
             <div className="flex items-center gap-2 mt-1">
               <Avatar className="w-4 h-4">
                 <AvatarFallback className="text-xs bg-secondary">
-                  {addedBy.charAt(0)}
+                  {getAddedByDisplay().charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-muted-foreground">Added by {addedBy}</span>
+              <span className="text-xs text-muted-foreground">Added by {getAddedByDisplay()}</span>
               <span className="text-xs text-accent">• {platform}</span>
             </div>
           </div>
@@ -55,14 +80,24 @@ export const SongItem = ({
               variant="ghost"
               size="sm"
               onClick={onLike}
-              className={`p-2 ${isLiked ? 'text-red-400 hover:text-red-300' : 'text-muted-foreground hover:text-foreground'}`}
+              className="p-2 text-muted-foreground hover:text-foreground"
             >
-              <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+              <Heart className="w-4 h-4" />
               <span className="text-xs ml-1">{likes}</span>
             </Button>
             <Button variant="ghost" size="icon" className="w-8 h-8">
               <ExternalLink className="w-4 h-4" />
             </Button>
+            {canRemove && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="w-8 h-8 text-red-500 hover:text-red-600"
+                onClick={onRemove}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="w-8 h-8">
               <MoreVertical className="w-4 h-4" />
             </Button>
