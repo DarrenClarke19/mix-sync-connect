@@ -36,9 +36,5 @@
       ]
     }
   ],
-  "functions": {
-    "src/**/*.ts": {
-      "runtime": "nodejs18.x"
-    }
-  }
+
 }
