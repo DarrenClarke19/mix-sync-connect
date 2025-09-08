@@ -50,6 +50,7 @@ interface PlaylistState {
   
   // Actions
   setPlaylists: (playlists: Playlist[]) => void;
+  syncPlaylist: (playlist: Playlist) => void;
   setCurrentPlaylist: (playlist: Playlist | null) => void;
   setPlaylistInvites: (invites: PlaylistInvite[]) => void;
   
@@ -96,6 +97,24 @@ export const usePlaylistStore = create<PlaylistState>()(
 
       // Actions
       setPlaylists: (playlists) => set({ playlists }),
+      
+      syncPlaylist: (playlist) => set((state) => {
+        // Only add if not already in store (prevents duplicates)
+        const exists = state.playlists.some(p => p.id === playlist.id);
+        if (exists) {
+          // Update existing playlist
+          return {
+            playlists: state.playlists.map(p => 
+              p.id === playlist.id ? { ...playlist, updatedAt: new Date() } : p
+            )
+          };
+        } else {
+          // Add new playlist
+          return {
+            playlists: [...state.playlists, playlist]
+          };
+        }
+      }),
       
       setCurrentPlaylist: (playlist) => set({ currentPlaylist: playlist }),
       

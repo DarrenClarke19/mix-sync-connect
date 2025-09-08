@@ -10,3 +10,4 @@ export const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || '';
 // 3. YouTube Music Premium account (for music-specific features)
 
 // For now, we'll use the basic search functionality which only requires an API key
+

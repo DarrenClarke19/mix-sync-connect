@@ -9,11 +9,18 @@ const SPOTIFY_REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${win
 export interface SpotifyTrack {
   id: string;
   name: string;
-  artists: Array<{ name: string }>;
-  album: { name: string; images: Array<{ url: string }> };
+  artists: Array<{ name: string; genres?: string[] }>;
+  album: { 
+    name: string; 
+    images: Array<{ url: string }>; 
+    release_date?: string;
+  };
   duration_ms: number;
   external_urls: { spotify: string };
   uri: string;
+  popularity?: number;
+  preview_url?: string;
+  external_ids?: { isrc?: string };
 }
 
 export interface SpotifyPlaylist {
@@ -178,3 +185,51 @@ export const getSpotifyProfile = async (accessToken: string) => {
 
   return response.json();
 };
+
+// SpotifyService class for unified search
+export class SpotifyService {
+  private accessToken: string | null = null;
+
+  constructor(accessToken?: string) {
+    this.accessToken = accessToken || null;
+  }
+
+  setAccessToken(token: string) {
+    this.accessToken = token;
+  }
+
+  async searchTracks(query: string, limit: number = 20): Promise<SpotifyTrack[]> {
+    if (!this.accessToken) {
+      throw new Error('Spotify access token not set');
+    }
+    return searchSpotifyTracks(this.accessToken, query, limit);
+  }
+
+  async getPlaylists(): Promise<SpotifyPlaylist[]> {
+    if (!this.accessToken) {
+      throw new Error('Spotify access token not set');
+    }
+    return getSpotifyPlaylists(this.accessToken);
+  }
+
+  async createPlaylist(name: string, description?: string): Promise<SpotifyPlaylist> {
+    if (!this.accessToken) {
+      throw new Error('Spotify access token not set');
+    }
+    return createSpotifyPlaylist(this.accessToken, name, description);
+  }
+
+  async addTracksToPlaylist(playlistId: string, trackUris: string[]): Promise<void> {
+    if (!this.accessToken) {
+      throw new Error('Spotify access token not set');
+    }
+    return addTracksToSpotifyPlaylist(this.accessToken, playlistId, trackUris);
+  }
+
+  async getProfile() {
+    if (!this.accessToken) {
+      throw new Error('Spotify access token not set');
+    }
+    return getSpotifyProfile(this.accessToken);
+  }
+}

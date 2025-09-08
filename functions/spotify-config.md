@@ -39,3 +39,4 @@ firebase functions:config:set spotify.client_secret="your_spotify_client_secret"
 - Use environment variables for all sensitive data
 - The `.env` file should be in `.gitignore`
 - Production should use Firebase environment variables
+

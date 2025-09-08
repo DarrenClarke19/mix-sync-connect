@@ -13,7 +13,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from '../../lib/firebase';
 
 export interface FirestoreUser {
   uid: string;

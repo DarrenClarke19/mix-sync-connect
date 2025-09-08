@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { useUserStore, Friend, FriendRequest } from "@/stores/useUserStore";
-import { searchUsers, SearchUserResult } from "@/lib/userService";
+import { searchUsers, SearchUserResult } from "@/services/firebase/userService";
 import { 
   sendFriendRequest as sendFirestoreFriendRequest,
   acceptFriendRequest as acceptFirestoreFriendRequest,
@@ -31,7 +31,7 @@ import {
   removeFriend as removeFirestoreFriend,
   listenToFriendRequests,
   listenToFriends
-} from "@/lib/friendService";
+} from "@/services/firebase/friendService";
 import { useNavigate } from "react-router-dom";
 
 export const Friends = () => {

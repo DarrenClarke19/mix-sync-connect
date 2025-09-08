@@ -7,7 +7,7 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { upsertUserProfile } from '@/lib/userService';
+import { upsertUserProfile } from '@/services/firebase/userService';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePlaylistStore } from '@/stores/usePlaylistStore';
 

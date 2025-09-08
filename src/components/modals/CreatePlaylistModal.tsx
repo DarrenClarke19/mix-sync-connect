@@ -13,9 +13,10 @@ import { Plus, Music } from "lucide-react";
 
 interface CreatePlaylistModalProps {
   onCreatePlaylist: (name: string) => void;
+  trigger?: React.ReactNode;
 }
 
-export const CreatePlaylistModal = ({ onCreatePlaylist }: CreatePlaylistModalProps) => {
+export const CreatePlaylistModal = ({ onCreatePlaylist, trigger }: CreatePlaylistModalProps) => {
   const [playlistName, setPlaylistName] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -30,10 +31,12 @@ export const CreatePlaylistModal = ({ onCreatePlaylist }: CreatePlaylistModalPro
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="gradient" className="w-full">
-          <Plus className="w-4 h-4" />
-          Create New Playlist
-        </Button>
+        {trigger || (
+          <Button variant="gradient" className="w-full">
+            <Plus className="w-4 h-4" />
+            Create New Playlist
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="bg-gradient-card border border-border/50 backdrop-blur-sm">
         <DialogHeader>

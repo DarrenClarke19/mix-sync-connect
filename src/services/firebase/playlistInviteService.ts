@@ -11,7 +11,7 @@ import {
   onSnapshot,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from '../../lib/firebase';
 
 export interface PlaylistInvite {
   id: string;
@@ -228,3 +228,4 @@ export const listenToSentInvites = (
     callback(invites);
   });
 };
+
